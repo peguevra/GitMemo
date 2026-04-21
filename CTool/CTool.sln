@@ -1,0 +1,24 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CTool", "CTool.csproj", "{3427F6B3-CDEF-89DD-952D-AB5298DB5860}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{3427F6B3-CDEF-89DD-952D-AB5298DB5860}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3427F6B3-CDEF-89DD-952D-AB5298DB5860}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3427F6B3-CDEF-89DD-952D-AB5298DB5860}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3427F6B3-CDEF-89DD-952D-AB5298DB5860}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {33827702-13A4-41D6-90FE-3879E78AE107}
+	EndGlobalSection
+EndGlobal

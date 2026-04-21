@@ -1,0 +1,15 @@
+# build
+bin/
+obj/
+
+# output
+Output/
+
+# VS
+.vs/
+
+# logs
+*.log
+
+# workspace（不要なら）
+*.code-workspace
