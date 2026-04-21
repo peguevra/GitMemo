@@ -22,19 +22,22 @@ h1 {
     background: white;
     padding: 8px;
     border-bottom: 1px solid #ccc;
+    z-index: 10;
 }
 
 input {
     width: 100%;
     font-size: 14px;
     margin-bottom: 5px;
-    padding: 5px;
+    padding: 6px;
+    box-sizing: border-box;
 }
 
 button {
     width: 100%;
     padding: 6px;
     font-size: 14px;
+    margin-bottom: 5px;
 }
 
 .item {
@@ -50,6 +53,11 @@ button {
 .title {
     font-size: 14px;
     word-break: break-word;
+}
+
+.delbtn {
+    font-size: 12px;
+    margin-top: 4px;
 }
 </style>
 
@@ -70,32 +78,44 @@ button {
 
 <script>
 
-const API_URL = "https://gitmemo-api.donation9196999.workers.dev/"; // ←ここにWorker URL
+const API_URL = "https://xxxx.workers.dev"; // ★必ず自分のURLに変更
 
+// =====================
+// 一覧ロード
+// =====================
 async function load() {
-    const res = await fetch('./data/events.json');
-    const json = await res.json();
 
-    const list = document.getElementById('list');
-    list.innerHTML = "";
+    try {
+        const res = await fetch('./data/events.json?nocache=' + Date.now());
+        const json = await res.json();
 
-    json.events
-        .sort((a,b) => new Date(b.StartDateTime) - new Date(a.StartDateTime))
-        .forEach(e => {
+        const list = document.getElementById('list');
+        list.innerHTML = "";
 
-        const div = document.createElement('div');
-        div.className = 'item';
+        json.events
+            .sort((a,b) => new Date(b.StartDateTime) - new Date(a.StartDateTime))
+            .forEach(e => {
 
-        div.innerHTML = `
-            <div class="time">${e.StartDateTime.replace('T',' ')}</div>
-            <div class="title">${e.Title}</div>
-            <button onclick="del('${e.Id}')">削除</button>
-        `;
+            const div = document.createElement('div');
+            div.className = 'item';
 
-        list.appendChild(div);
-    });
+            div.innerHTML = `
+                <div class="time">${e.StartDateTime.replace('T',' ')}</div>
+                <div class="title">${e.Title}</div>
+                <button class="delbtn" onclick="del('${e.Id}')">削除</button>
+            `;
+
+            list.appendChild(div);
+        });
+
+    } catch(e) {
+        alert("JSON取得失敗: " + e);
+    }
 }
 
+// =====================
+// 追加（デバッグ付き）
+// =====================
 async function add() {
 
     const d = document.getElementById('date').value;
@@ -117,28 +137,54 @@ async function add() {
         Raw: "from iPhone"
     };
 
-    await fetch(API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(obj)
-    });
+    try {
+        const res = await fetch(API_URL, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(obj)
+        });
 
-    alert("追加した（数秒後反映）");
+        const text = await res.text();
 
-    load();
+        alert("API応答: " + text);
+
+        // 成功時のみ再読込
+        if (text.startsWith("OK")) {
+            load();
+        }
+
+    } catch(e) {
+        alert("通信失敗: " + e);
+    }
 }
 
+// =====================
+// 削除
+// =====================
 async function del(id) {
 
-    await fetch(API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ deleteId: id })
-    });
+    try {
+        const res = await fetch(API_URL, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ deleteId: id })
+        });
 
-    alert("削除した（数秒後反映）");
+        const text = await res.text();
 
-    load();
+        alert("削除応答: " + text);
+
+        if (text.startsWith("OK")) {
+            load();
+        }
+
+    } catch(e) {
+        alert("削除失敗: " + e);
+    }
 }
 
 load();

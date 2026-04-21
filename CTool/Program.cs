@@ -5,7 +5,7 @@ using CTool.Services;
 
 AppRunner.Run(() =>
 {
-    // ★ これ必須（Shift-JIS有効化）
+    // ★ Shift-JIS対応
     Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
     var paths = new GlobalPaths();
@@ -17,6 +17,10 @@ AppRunner.Run(() =>
 
     try
     {
+        // =========================
+        // ① ローカル → JSON生成
+        // =========================
+
         var lines = File.ReadAllLines(
             paths.InputFile,
             Encoding.GetEncoding("shift_jis")
@@ -33,7 +37,25 @@ AppRunner.Run(() =>
         exporter.Export(events, paths.JsonFile);
         exporter.Export(events, paths.WebJsonFile);
 
-        Log.Info($"処理完了: {events.Count}件");
+        Log.Info($"JSON出力: {events.Count}件");
+
+
+        // =========================
+        // ② GitHub → TXT取込
+        // =========================
+
+        var importer = new GitHubImporter();
+
+        // ★ GitHub Pages URL
+        var url = "https://peguevra.github.io/GitMemo/data/events.json";
+
+        var remoteEvents = importer.Fetch(url).Result;
+
+        var textExporter = new TextExporter();
+
+        textExporter.Export(remoteEvents, paths.InputFile);
+
+        Log.Info($"GitHub取込: {remoteEvents.Count}件");
     }
     catch (Exception ex)
     {
