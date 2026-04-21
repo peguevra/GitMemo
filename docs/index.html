@@ -4,58 +4,52 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GitMemo</title>
-<link rel="stylesheet" href="style.css">
 
 <style>
 body {
-    font-size: 14px;
-    margin: 0;
+    font-family: sans-serif;
+    margin: 10px;
+}
+
+h1 {
+    font-size: 20px;
 }
 
 /* フォーム固定 */
-#formArea {
+#formBox {
     position: sticky;
     top: 0;
-    background: #fff;
+    background: white;
     padding: 8px;
     border-bottom: 1px solid #ccc;
-    z-index: 1000;
 }
 
-/* 横並び */
-.row {
-    display: flex;
-    gap: 4px;
+input {
+    width: 100%;
+    font-size: 14px;
+    margin-bottom: 5px;
+    padding: 5px;
 }
 
-.row input {
-    flex: 1;
-    padding: 4px;
+button {
+    width: 100%;
+    padding: 6px;
     font-size: 14px;
 }
 
-.row button {
-    padding: 4px 6px;
-    font-size: 12px;
-}
-
-/* 出力 */
-#output {
-    font-size: 12px;
-    white-space: pre-wrap;
-}
-
-/* 一覧 */
 .item {
-    padding: 8px;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid #ddd;
+    padding: 6px 0;
 }
 
-/* 削除ボタン */
-.del {
-    font-size: 11px;
-    color: red;
-    margin-left: 8px;
+.time {
+    font-size: 12px;
+    color: gray;
+}
+
+.title {
+    font-size: 14px;
+    word-break: break-word;
 }
 </style>
 
@@ -63,119 +57,88 @@ body {
 
 <body>
 
-<h3 style="margin:8px;">GitMemo</h3>
+<h1>GitMemo</h1>
 
-<!-- フォーム -->
-<div id="formArea">
-
-<div class="row">
-    <input id="date" type="datetime-local">
-    <input id="title" type="text" placeholder="内容">
+<div id="formBox">
+    <input id="date" placeholder="2026-06-02">
+    <input id="time" placeholder="11:00">
+    <input id="title" placeholder="内容">
+    <button onclick="add()">追加</button>
 </div>
 
-<div class="row">
-    <button onclick="generate()">生成</button>
-    <button onclick="copyJson()">コピー</button>
-</div>
-
-<pre id="output"></pre>
-
-</div>
-
-<!-- 一覧 -->
 <div id="list"></div>
 
 <script>
 
-// 日付整形
-function formatDate(dt) {
-    const d = new Date(dt);
-    return d.getFullYear() + "/" +
-        String(d.getMonth()+1).padStart(2,'0') + "/" +
-        String(d.getDate()).padStart(2,'0') + " " +
-        String(d.getHours()).padStart(2,'0') + ":" +
-        String(d.getMinutes()).padStart(2,'0');
-}
+const API_URL = "https://gitmemo-api.donation9196999.workers.dev/"; // ←ここにWorker URL
 
-// 表示
 async function load() {
     const res = await fetch('./data/events.json');
     const json = await res.json();
 
     const list = document.getElementById('list');
+    list.innerHTML = "";
 
-    json.events.sort((a, b) =>
-        new Date(b.StartDateTime) - new Date(a.StartDateTime)
-    );
+    json.events
+        .sort((a,b) => new Date(b.StartDateTime) - new Date(a.StartDateTime))
+        .forEach(e => {
 
-    json.events.forEach(e => {
         const div = document.createElement('div');
         div.className = 'item';
 
         div.innerHTML = `
-            <div>
-                ${formatDate(e.StartDateTime)}
-                <span class="del" onclick='deleteItem(${JSON.stringify(e)})'>削除</span>
-            </div>
-            <div>${e.Title}</div>
+            <div class="time">${e.StartDateTime.replace('T',' ')}</div>
+            <div class="title">${e.Title}</div>
+            <button onclick="del('${e.Id}')">削除</button>
         `;
 
         list.appendChild(div);
     });
 }
 
-// 追加生成
-function generate() {
-    const dt = document.getElementById('date').value;
+async function add() {
+
+    const d = document.getElementById('date').value;
+    const t = document.getElementById('time').value;
     const title = document.getElementById('title').value;
 
-    if (!dt || !title) {
-        alert("入力してください");
+    if (!d || !t || !title) {
+        alert("全部入力");
         return;
     }
 
-    const d = new Date(dt);
-
-    const id = d.getFullYear().toString() +
-        String(d.getMonth()+1).padStart(2,'0') +
-        String(d.getDate()).padStart(2,'0') + "_" +
-        String(d.getHours()).padStart(2,'0') +
-        String(d.getMinutes()).padStart(2,'0');
+    const dt = `${d}T${t}:00`;
 
     const obj = {
-        Id: id,
-        StartDateTime: d.toISOString().slice(0,19),
+        Id: Date.now().toString(),
+        StartDateTime: dt,
         EndDateTime: null,
         Title: title,
-        Raw: "manual"
+        Raw: "from iPhone"
     };
 
-    document.getElementById('output').textContent =
-        JSON.stringify(obj, null, 2);
+    await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(obj)
+    });
+
+    alert("追加した（数秒後反映）");
+
+    load();
 }
 
-// 削除JSON生成
-function deleteItem(e) {
-    const obj = {
-        deleteId: e.Id
-    };
+async function del(id) {
 
-    document.getElementById('output').textContent =
-        JSON.stringify(obj, null, 2);
-}
+    await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deleteId: id })
+    });
 
-// コピー
-function copyJson() {
-    const text = document.getElementById('output').textContent;
+    alert("削除した（数秒後反映）");
 
-    if (!text) {
-        alert("先に生成");
-        return;
-    }
-
-    navigator.clipboard.writeText(text)
-        .then(() => alert("コピー"))
-        .catch(() => alert("失敗"));
+    load();
 }
 
 load();
