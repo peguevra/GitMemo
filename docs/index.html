@@ -5,30 +5,60 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GitMemo</title>
 <link rel="stylesheet" href="style.css">
+
+<style>
+/* フォーム固定 */
+#formArea {
+    position: sticky;
+    top: 0;
+    background: #ffffff;
+    padding: 10px;
+    border-bottom: 1px solid #ccc;
+    z-index: 1000;
+}
+
+/* 入力を少し見やすく */
+#formArea input {
+    width: 100%;
+    margin: 4px 0;
+    padding: 6px;
+    font-size: 16px;
+}
+
+#formArea button {
+    margin-top: 4px;
+    padding: 6px 10px;
+    font-size: 14px;
+}
+</style>
+
 </head>
 
 <body>
 
 <h1>GitMemo</h1>
 
-<!-- 一覧 -->
-<div id="list"></div>
+<!-- ★ 固定フォーム -->
+<div id="formArea">
 
-<hr>
-
-<!-- 追加フォーム -->
 <h2>予定追加</h2>
 
 <input id="date" type="datetime-local">
 <input id="title" type="text" placeholder="内容">
+
 <button onclick="generate()">生成</button>
 <button onclick="copyJson()">コピー</button>
 
 <pre id="output"></pre>
 
+</div>
+
+<!-- 一覧 -->
+<div id="list"></div>
+
 <script>
 
-// 日付フォーマット（表示用）
+// 日付フォーマット
 function formatDate(dt) {
     const d = new Date(dt);
     return d.getFullYear() + "/" +
@@ -45,7 +75,7 @@ async function load() {
 
     const list = document.getElementById('list');
 
-    // 新しい順にソート
+    // 新しい順
     json.events.sort((a, b) => 
         new Date(b.StartDateTime) - new Date(a.StartDateTime)
     );
@@ -58,12 +88,10 @@ async function load() {
 
         const eventDate = new Date(e.StartDateTime);
 
-        // 今日の強調
         if (eventDate.toDateString() === today) {
             div.style.background = "#fff3cd";
         }
 
-        // 過去を少し薄く
         if (eventDate < new Date()) {
             div.style.opacity = "0.6";
         }
@@ -77,7 +105,7 @@ async function load() {
     });
 }
 
-// JSON生成（追加用）
+// JSON生成
 function generate() {
     const dt = document.getElementById('date').value;
     const title = document.getElementById('title').value;
@@ -107,7 +135,7 @@ function generate() {
         JSON.stringify(json, null, 2);
 }
 
-// コピー機能
+// コピー
 function copyJson() {
     const text = document.getElementById('output').textContent;
 
