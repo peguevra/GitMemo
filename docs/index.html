@@ -7,28 +7,55 @@
 <link rel="stylesheet" href="style.css">
 
 <style>
+body {
+    font-size: 14px;
+    margin: 0;
+}
+
 /* フォーム固定 */
 #formArea {
     position: sticky;
     top: 0;
-    background: #ffffff;
-    padding: 10px;
+    background: #fff;
+    padding: 8px;
     border-bottom: 1px solid #ccc;
     z-index: 1000;
 }
 
-/* 入力を少し見やすく */
-#formArea input {
-    width: 100%;
-    margin: 4px 0;
-    padding: 6px;
-    font-size: 16px;
+/* 横並び */
+.row {
+    display: flex;
+    gap: 4px;
 }
 
-#formArea button {
-    margin-top: 4px;
-    padding: 6px 10px;
+.row input {
+    flex: 1;
+    padding: 4px;
     font-size: 14px;
+}
+
+.row button {
+    padding: 4px 6px;
+    font-size: 12px;
+}
+
+/* 出力 */
+#output {
+    font-size: 12px;
+    white-space: pre-wrap;
+}
+
+/* 一覧 */
+.item {
+    padding: 8px;
+    border-bottom: 1px solid #eee;
+}
+
+/* 削除ボタン */
+.del {
+    font-size: 11px;
+    color: red;
+    margin-left: 8px;
 }
 </style>
 
@@ -36,18 +63,20 @@
 
 <body>
 
-<h1>GitMemo</h1>
+<h3 style="margin:8px;">GitMemo</h3>
 
-<!-- ★ 固定フォーム -->
+<!-- フォーム -->
 <div id="formArea">
 
-<h2>予定追加</h2>
+<div class="row">
+    <input id="date" type="datetime-local">
+    <input id="title" type="text" placeholder="内容">
+</div>
 
-<input id="date" type="datetime-local">
-<input id="title" type="text" placeholder="内容">
-
-<button onclick="generate()">生成</button>
-<button onclick="copyJson()">コピー</button>
+<div class="row">
+    <button onclick="generate()">生成</button>
+    <button onclick="copyJson()">コピー</button>
+</div>
 
 <pre id="output"></pre>
 
@@ -58,7 +87,7 @@
 
 <script>
 
-// 日付フォーマット
+// 日付整形
 function formatDate(dt) {
     const d = new Date(dt);
     return d.getFullYear() + "/" +
@@ -68,50 +97,40 @@ function formatDate(dt) {
         String(d.getMinutes()).padStart(2,'0');
 }
 
-// 一覧表示
+// 表示
 async function load() {
     const res = await fetch('./data/events.json');
     const json = await res.json();
 
     const list = document.getElementById('list');
 
-    // 新しい順
-    json.events.sort((a, b) => 
+    json.events.sort((a, b) =>
         new Date(b.StartDateTime) - new Date(a.StartDateTime)
     );
-
-    const today = new Date().toDateString();
 
     json.events.forEach(e => {
         const div = document.createElement('div');
         div.className = 'item';
 
-        const eventDate = new Date(e.StartDateTime);
-
-        if (eventDate.toDateString() === today) {
-            div.style.background = "#fff3cd";
-        }
-
-        if (eventDate < new Date()) {
-            div.style.opacity = "0.6";
-        }
-
         div.innerHTML = `
-            <div class="time">${formatDate(e.StartDateTime)}</div>
-            <div class="title">${e.Title}</div>
+            <div>
+                ${formatDate(e.StartDateTime)}
+                <span class="del" onclick='deleteItem(${JSON.stringify(e)})'>削除</span>
+            </div>
+            <div>${e.Title}</div>
         `;
 
         list.appendChild(div);
     });
 }
 
-// JSON生成
+// 追加生成
 function generate() {
     const dt = document.getElementById('date').value;
     const title = document.getElementById('title').value;
 
     if (!dt || !title) {
-        alert("日付と内容を入力してください");
+        alert("入力してください");
         return;
     }
 
@@ -123,7 +142,7 @@ function generate() {
         String(d.getHours()).padStart(2,'0') +
         String(d.getMinutes()).padStart(2,'0');
 
-    const json = {
+    const obj = {
         Id: id,
         StartDateTime: d.toISOString().slice(0,19),
         EndDateTime: null,
@@ -132,7 +151,17 @@ function generate() {
     };
 
     document.getElementById('output').textContent =
-        JSON.stringify(json, null, 2);
+        JSON.stringify(obj, null, 2);
+}
+
+// 削除JSON生成
+function deleteItem(e) {
+    const obj = {
+        deleteId: e.Id
+    };
+
+    document.getElementById('output').textContent =
+        JSON.stringify(obj, null, 2);
 }
 
 // コピー
@@ -140,16 +169,15 @@ function copyJson() {
     const text = document.getElementById('output').textContent;
 
     if (!text) {
-        alert("先に生成してください");
+        alert("先に生成");
         return;
     }
 
     navigator.clipboard.writeText(text)
-        .then(() => alert("コピーしました"))
-        .catch(() => alert("コピー失敗"));
+        .then(() => alert("コピー"))
+        .catch(() => alert("失敗"));
 }
 
-// 初期表示
 load();
 
 </script>
