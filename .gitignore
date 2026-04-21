@@ -13,3 +13,7 @@ Output/
 
 # workspace（不要なら）
 *.code-workspace
+
+# その他
+*.txt
+
