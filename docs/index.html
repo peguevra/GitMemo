@@ -11,29 +11,41 @@
 
 <h1>GitMemo</h1>
 
+<!-- 一覧 -->
 <div id="list"></div>
+
+<hr>
+
+<!-- 追加フォーム -->
+<h2>予定追加</h2>
+
+<input id="date" type="datetime-local">
+<input id="title" type="text" placeholder="内容">
+<button onclick="generate()">生成</button>
+<button onclick="copyJson()">コピー</button>
+
+<pre id="output"></pre>
 
 <script>
 
-// 日付フォーマット
+// 日付フォーマット（表示用）
 function formatDate(dt) {
     const d = new Date(dt);
-
     return d.getFullYear() + "/" +
-        String(d.getMonth() + 1).padStart(2, '0') + "/" +
-        String(d.getDate()).padStart(2, '0') + " " +
-        String(d.getHours()).padStart(2, '0') + ":" +
-        String(d.getMinutes()).padStart(2, '0');
+        String(d.getMonth()+1).padStart(2,'0') + "/" +
+        String(d.getDate()).padStart(2,'0') + " " +
+        String(d.getHours()).padStart(2,'0') + ":" +
+        String(d.getMinutes()).padStart(2,'0');
 }
 
-// メイン処理
+// 一覧表示
 async function load() {
     const res = await fetch('./data/events.json');
     const json = await res.json();
 
     const list = document.getElementById('list');
 
-    // ソート（念のためJS側でも保証）
+    // 新しい順にソート
     json.events.sort((a, b) => 
         new Date(b.StartDateTime) - new Date(a.StartDateTime)
     );
@@ -51,6 +63,11 @@ async function load() {
             div.style.background = "#fff3cd";
         }
 
+        // 過去を少し薄く
+        if (eventDate < new Date()) {
+            div.style.opacity = "0.6";
+        }
+
         div.innerHTML = `
             <div class="time">${formatDate(e.StartDateTime)}</div>
             <div class="title">${e.Title}</div>
@@ -60,6 +77,51 @@ async function load() {
     });
 }
 
+// JSON生成（追加用）
+function generate() {
+    const dt = document.getElementById('date').value;
+    const title = document.getElementById('title').value;
+
+    if (!dt || !title) {
+        alert("日付と内容を入力してください");
+        return;
+    }
+
+    const d = new Date(dt);
+
+    const id = d.getFullYear().toString() +
+        String(d.getMonth()+1).padStart(2,'0') +
+        String(d.getDate()).padStart(2,'0') + "_" +
+        String(d.getHours()).padStart(2,'0') +
+        String(d.getMinutes()).padStart(2,'0');
+
+    const json = {
+        Id: id,
+        StartDateTime: d.toISOString().slice(0,19),
+        EndDateTime: null,
+        Title: title,
+        Raw: "manual"
+    };
+
+    document.getElementById('output').textContent =
+        JSON.stringify(json, null, 2);
+}
+
+// コピー機能
+function copyJson() {
+    const text = document.getElementById('output').textContent;
+
+    if (!text) {
+        alert("先に生成してください");
+        return;
+    }
+
+    navigator.clipboard.writeText(text)
+        .then(() => alert("コピーしました"))
+        .catch(() => alert("コピー失敗"));
+}
+
+// 初期表示
 load();
 
 </script>
