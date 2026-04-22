@@ -1,5 +1,3 @@
-namespace CTool;
-
 public class GlobalPaths
 {
     public string BaseDir => AppContext.BaseDirectory;
@@ -15,10 +13,12 @@ public class GlobalPaths
     // ★ GitHub Pages用（docs）
     public string DocsDir => Path.Combine(RootDir, "docs");
 
-    public string InputFile => Path.Combine(InputDir, "面会.txt");
+    // ★★★ ここだけ変更
+    public string InputFile => Path.Combine(InputDir, "memo.txt");
+
     public string JsonFile => Path.Combine(OutputDir, "events.json");
 
-    // ★ iPhoneが参照するJSON（ここが最重要）
+    // ★ iPhoneが参照するJSON
     public string WebJsonFile => Path.Combine(DocsDir, "data", "events.json");
 
     public void Ensure()
