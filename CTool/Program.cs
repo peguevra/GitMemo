@@ -1,16 +1,18 @@
 ﻿using System.Text;
 using System.Diagnostics;
+using System.Text.Json;
 using CommonBatchFramework.App;
 using CTool;
 using CTool.Services;
+using CTool.Models;
 
 AppRunner.Run(() =>
 {
     Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
-    // ★ コンソール（cmd互換）
-    Console.InputEncoding = Encoding.GetEncoding("shift_jis");
-    Console.OutputEncoding = Encoding.GetEncoding("shift_jis");
+    // ★ UTF-8統一
+    Console.InputEncoding = Encoding.UTF8;
+    Console.OutputEncoding = Encoding.UTF8;
 
     var paths = new GlobalPaths();
     paths.Ensure();
@@ -48,32 +50,88 @@ AppRunner.Run(() =>
         }
 
         // =========================
-        // push（TXT → JSON → Git）
+        // push（差分更新版）
         // =========================
         else if (mode == "push")
         {
-            // ★ Shift-JIS読み込み（重要）
-            var lines = File.ReadAllLines(
-                paths.InputFile,
-                Encoding.GetEncoding("shift_jis")
-            );
+            // -------------------------
+            // 1. memo.txt → 新イベント生成
+            // -------------------------
+            var lines = File.ReadAllLines(paths.InputFile, Encoding.UTF8);
 
             var parser = new MemoParser();
             var parsed = parser.Parse(lines);
 
             var builder = new EventBuilder();
-            var events = builder.Build(parsed);
+            var newEvents = builder.Build(parsed);
 
+            Log.Info($"新規生成: {newEvents.Count}件");
+
+            // -------------------------
+            // 2. 既存JSON読み込み（旧状態）
+            // -------------------------
+            Dictionary<string, Event> oldMap = new();
+
+            if (File.Exists(paths.JsonFile))
+            {
+                var oldJson = File.ReadAllText(paths.JsonFile);
+                var wrapper = JsonSerializer.Deserialize<JsonWrapper>(oldJson);
+
+                if (wrapper?.events != null)
+                {
+                    oldMap = wrapper.events.ToDictionary(e => e.Id);
+                }
+            }
+
+            // -------------------------
+            // 3. 新状態マップ
+            // -------------------------
+            var newMap = newEvents.ToDictionary(e => e.Id);
+
+            // -------------------------
+            // 4. 差分算出
+            // -------------------------
+            var added = newMap.Keys.Except(oldMap.Keys).ToList();
+            var deleted = oldMap.Keys.Except(newMap.Keys).ToList();
+            var updated = newMap.Keys.Intersect(oldMap.Keys)
+                .Where(id =>
+                    newMap[id].Title != oldMap[id].Title ||
+                    newMap[id].StartDateTime != oldMap[id].StartDateTime
+                )
+                .ToList();
+
+            Log.Info($"追加: {added.Count}");
+            Log.Info($"削除: {deleted.Count}");
+            Log.Info($"更新: {updated.Count}");
+
+            // -------------------------
+            // 5. マージ処理
+            // -------------------------
+            foreach (var id in deleted)
+                oldMap.Remove(id);
+
+            foreach (var id in added)
+                oldMap[id] = newMap[id];
+
+            foreach (var id in updated)
+                oldMap[id] = newMap[id];
+
+            var merged = oldMap.Values
+                .OrderBy(e => e.StartDateTime)
+                .ToList();
+
+            // -------------------------
+            // 6. JSON出力
+            // -------------------------
             var exporter = new JsonExporter();
-            exporter.Export(events, paths.JsonFile);
-            exporter.Export(events, paths.WebJsonFile);
+            exporter.Export(merged, paths.JsonFile);
+            exporter.Export(merged, paths.WebJsonFile);
 
-            Log.Info($"JSON出力: {events.Count}件");
+            Log.Info($"JSON出力: {merged.Count}件");
 
-            // =========================
-            // Git 自動処理
-            // =========================
-
+            // -------------------------
+            // 7. Git処理
+            // -------------------------
             Directory.SetCurrentDirectory(paths.RootDir);
 
             RunGit("status");
@@ -122,9 +180,7 @@ void RunGit(string args)
         RedirectStandardOutput = true,
         RedirectStandardError = true,
         UseShellExecute = false,
-        CreateNoWindow = true,
-        StandardOutputEncoding = Encoding.GetEncoding("shift_jis"),
-        StandardErrorEncoding = Encoding.GetEncoding("shift_jis")
+        CreateNoWindow = true
     };
 
     using var proc = Process.Start(psi);
@@ -151,4 +207,14 @@ bool IsRebaseInProgress()
 
     return Directory.Exists(Path.Combine(gitDir, "rebase-apply")) ||
            Directory.Exists(Path.Combine(gitDir, "rebase-merge"));
+}
+
+
+// =========================
+// JSONラッパー
+// =========================
+public class JsonWrapper
+{
+    public int version { get; set; }
+    public List<Event> events { get; set; }
 }
