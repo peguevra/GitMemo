@@ -2,13 +2,13 @@ namespace CTool.Models;
 
 public class Event
 {
-    public string Id { get; set; }
+    public required string Id { get; set; }
 
     public DateTime StartDateTime { get; set; }
 
     public DateTime? EndDateTime { get; set; }
 
-    public string Title { get; set; }
+    public required string Title { get; set; }
 
-    public string Raw { get; set; }
+    public required string Raw { get; set; }
 }

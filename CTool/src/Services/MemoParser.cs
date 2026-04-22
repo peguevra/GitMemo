@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.RegularExpressions;
 using CommonBatchFramework.App;
 using CTool.Models;
@@ -6,10 +7,9 @@ namespace CTool.Services;
 
 public class MemoParser
 {
-    // ★ ゆるい正規表現（現実データ対応）
     private static readonly Regex _regex = new Regex(
         @"^(?<era>[A-Z])\s*(?<year>\d+)\.?\s*(?<month>\d{1,2})\.?\s*(?<day>\d{1,2})(-(?<day2>\d{1,2}))?\s+(?<time>\d{1,2}[:：]\d{2}).*?(?<rest>.+)$",
-        RegexOptions.Compiled
+        RegexOptions.Compiled | RegexOptions.CultureInvariant
     );
 
     public List<ParsedMemo> Parse(IEnumerable<string> lines)
@@ -27,7 +27,6 @@ public class MemoParser
             if (rawLine.TrimStart().StartsWith("#"))
                 continue;
 
-            // ★ 文字正規化（重要）
             var line = Normalize(rawLine);
 
             try
@@ -63,23 +62,41 @@ public class MemoParser
         return result;
     }
 
-    // ★ 文字揺れ吸収
     private string Normalize(string input)
     {
-        return input
+        if (string.IsNullOrEmpty(input))
+            return string.Empty;
+
+        input = input.Replace("�", "");
+
+        input = input
             .Replace("　", " ")
             .Replace("：", ":")
             .Replace("－", "-")
             .Replace("−", "-")
             .Replace("～", "-")
-            .Replace("〜", "-")
-            .Replace("�", "")   // 文字化け除去
-            .Trim();
+            .Replace("〜", "-");
+
+        input = RemoveControlChars(input);
+
+        return input.Trim();
     }
 
-    // ★ 時刻ゆる補正
     private string NormalizeTime(string time)
     {
         return time.Replace("：", ":");
+    }
+
+    private string RemoveControlChars(string input)
+    {
+        var sb = new StringBuilder(input.Length);
+
+        foreach (var c in input)
+        {
+            if (!char.IsControl(c) || c == '\t')
+                sb.Append(c);
+        }
+
+        return sb.ToString();
     }
 }

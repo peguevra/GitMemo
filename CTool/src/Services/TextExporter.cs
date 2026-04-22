@@ -12,11 +12,10 @@ public class TextExporter
             .Select(e => ToLine(e))
             .ToList();
 
-        // ★ Shift-JISで出力（cmd互換）
         File.WriteAllLines(
             path,
             lines,
-            Encoding.GetEncoding("shift_jis")
+            Encoding.GetEncoding(932)
         );
     }
 
