@@ -1,16 +1,15 @@
 ﻿using System.Text;
 using System.Diagnostics;
+using System.Text.Json;
 using CommonBatchFramework.App;
 using CTool;
 using CTool.Services;
+using CTool.Models;
 
 AppRunner.Run(() =>
 {
     Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
-    // =========================
-    // コンソール設定（Shift-JIS）
-    // =========================
     Console.InputEncoding = Encoding.GetEncoding("shift_jis");
     Console.OutputEncoding = Encoding.GetEncoding("shift_jis");
 
@@ -24,7 +23,6 @@ AppRunner.Run(() =>
     try
     {
         var args = Environment.GetCommandLineArgs();
-
         if (args.Length < 2)
         {
             Log.Error("コマンド指定: pull / push");
@@ -33,9 +31,6 @@ AppRunner.Run(() =>
 
         var mode = args[1].ToLower();
 
-        // =========================
-        // pull（GitHub → TXT）
-        // =========================
         if (mode == "pull")
         {
             var importer = new GitHubImporter();
@@ -43,19 +38,15 @@ AppRunner.Run(() =>
 
             var remoteEvents = importer.Fetch(url).Result;
 
-            var textExporter = new TextExporter();
-            textExporter.Export(remoteEvents, paths.InputFile);
+            var exporter = new TextExporter();
+            exporter.Export(remoteEvents, paths.InputFile);
 
             Log.Info($"GitHub取込: {remoteEvents.Count}件");
         }
-
-        // =========================
-        // push（TXT → JSON → Git）
-        // =========================
         else if (mode == "push")
         {
             // =========================
-            // memo.txt 読み込み（Shift-JIS）
+            // 1. memo.txt → parse
             // =========================
             var lines = File.ReadAllLines(
                 paths.InputFile,
@@ -66,71 +57,65 @@ AppRunner.Run(() =>
             var parsed = parser.Parse(lines);
 
             var builder = new EventBuilder();
-            var events = builder.Build(parsed);
-
-            var exporter = new JsonExporter();
-
-            // ★ 差分チェック付き出力
-            bool changedLocal = exporter.Export(events, paths.JsonFile);
-            bool changedWeb = exporter.Export(events, paths.WebJsonFile);
-
-            Log.Info($"JSON生成: {events.Count}件");
+            var newEvents = builder.Build(parsed);
 
             // =========================
-            // 変更なしならGitしない
+            // 2. 既存JSON読み込み
             // =========================
-            if (!changedLocal && !changedWeb)
+            List<Event> oldEvents = new();
+
+            if (File.Exists(paths.WebJsonFile))
+            {
+                var oldJson = File.ReadAllText(paths.WebJsonFile);
+                var wrapper = JsonSerializer.Deserialize<Wrapper>(oldJson);
+                oldEvents = wrapper?.events ?? new List<Event>();
+            }
+
+            // =========================
+            // 3. 差分比較
+            // =========================
+            var options = new JsonSerializerOptions { WriteIndented = false };
+
+            var newJson = JsonSerializer.Serialize(newEvents, options);
+            var oldJsonNorm = JsonSerializer.Serialize(oldEvents, options);
+
+            if (newJson == oldJsonNorm)
             {
                 Log.Info("差分なし → Git処理スキップ");
                 return;
             }
 
+            Log.Info("差分あり → 更新実行");
+
             // =========================
-            // Git処理
+            // 4. 出力
+            // =========================
+            var exporter = new JsonExporter();
+            exporter.Export(newEvents, paths.JsonFile);
+            exporter.Export(newEvents, paths.WebJsonFile);
+
+            Log.Info($"JSON生成: {newEvents.Count}件");
+
+            // =========================
+            // 5. Git処理
             // =========================
             Directory.SetCurrentDirectory(paths.RootDir);
 
             RunGit("status");
-
-            // ★ 安全pull（変更ある場合は失敗する可能性あり）
-            var pullResult = RunGit("pull --rebase");
-
-            if (pullResult.Contains("Please commit or stash"))
-            {
-                Log.Info("ローカル変更あり → 自動コミット後に再実行");
-
-                RunGit("add .");
-                RunGit("commit -m \"auto save before rebase\"");
-                RunGit("pull --rebase");
-            }
-
             RunGit("add docs/data/events.json");
-
-            var commitResult = RunGit("commit -m \"update\"");
-
-            if (commitResult.Contains("nothing to commit"))
-            {
-                Log.Info("コミット対象なし → 終了");
-                return;
-            }
-
-            var pushResult = RunGit("push");
-
-            if (pushResult.Contains("Everything up-to-date"))
-            {
-                Log.Info("Git: 変更なし");
-            }
+            RunGit("commit -m \"auto update\"");
+            RunGit("push");
 
             Log.Info("Git push 完了");
         }
         else
         {
-            Log.Error("不明コマンド: pull / push");
+            Log.Error("不明コマンド");
         }
     }
     catch (Exception ex)
     {
-        Log.Error($"致命的エラー: {ex.Message}");
+        Log.Error(ex.ToString());
     }
 
     Log.Info("CTool batch end");
@@ -138,9 +123,9 @@ AppRunner.Run(() =>
 
 
 // =========================
-// Git実行（出力を返す版）
+// Git実行
 // =========================
-string RunGit(string args)
+void RunGit(string args)
 {
     Log.Info($"[git {args}]");
 
@@ -168,18 +153,14 @@ string RunGit(string args)
 
     if (!string.IsNullOrWhiteSpace(error))
         Console.WriteLine("Git Error: " + error);
-
-    return output + "\n" + error;
 }
 
 
 // =========================
-// rebase判定（未使用だが残す）
+// GitHub JSON wrapper
 // =========================
-bool IsRebaseInProgress()
+class Wrapper
 {
-    var gitDir = ".git";
-
-    return Directory.Exists(Path.Combine(gitDir, "rebase-apply")) ||
-           Directory.Exists(Path.Combine(gitDir, "rebase-merge"));
+    public int version { get; set; }
+    public List<Event> events { get; set; } = new();
 }
