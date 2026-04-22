@@ -10,7 +10,9 @@ AppRunner.Run(() =>
 {
     Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
-    // ★ UTF-8統一
+    // =========================
+    // ★ 文字コード完全固定（重要）
+    // =========================
     Console.InputEncoding = Encoding.UTF8;
     Console.OutputEncoding = Encoding.UTF8;
 
@@ -34,7 +36,7 @@ AppRunner.Run(() =>
         var mode = args[1].ToLower();
 
         // =========================
-        // pull（GitHub → TXT）
+        // pull
         // =========================
         if (mode == "pull")
         {
@@ -50,12 +52,12 @@ AppRunner.Run(() =>
         }
 
         // =========================
-        // push（差分更新版）
+        // push（差分更新）
         // =========================
         else if (mode == "push")
         {
             // -------------------------
-            // 1. memo.txt → 新イベント生成
+            // 1. memo.txt 読み込み（UTF-8固定）
             // -------------------------
             var lines = File.ReadAllLines(paths.InputFile, Encoding.UTF8);
 
@@ -68,13 +70,14 @@ AppRunner.Run(() =>
             Log.Info($"新規生成: {newEvents.Count}件");
 
             // -------------------------
-            // 2. 既存JSON読み込み（旧状態）
+            // 2. 旧JSONロード
             // -------------------------
             Dictionary<string, Event> oldMap = new();
 
             if (File.Exists(paths.JsonFile))
             {
-                var oldJson = File.ReadAllText(paths.JsonFile);
+                var oldJson = File.ReadAllText(paths.JsonFile, Encoding.UTF8);
+
                 var wrapper = JsonSerializer.Deserialize<JsonWrapper>(oldJson);
 
                 if (wrapper?.events != null)
@@ -84,12 +87,12 @@ AppRunner.Run(() =>
             }
 
             // -------------------------
-            // 3. 新状態マップ
+            // 3. 新MAP
             // -------------------------
             var newMap = newEvents.ToDictionary(e => e.Id);
 
             // -------------------------
-            // 4. 差分算出
+            // 4. 差分
             // -------------------------
             var added = newMap.Keys.Except(oldMap.Keys).ToList();
             var deleted = oldMap.Keys.Except(newMap.Keys).ToList();
@@ -105,7 +108,7 @@ AppRunner.Run(() =>
             Log.Info($"更新: {updated.Count}");
 
             // -------------------------
-            // 5. マージ処理
+            // 5. マージ
             // -------------------------
             foreach (var id in deleted)
                 oldMap.Remove(id);
@@ -121,7 +124,7 @@ AppRunner.Run(() =>
                 .ToList();
 
             // -------------------------
-            // 6. JSON出力
+            // 6. JSON出力（UTF-8固定）
             // -------------------------
             var exporter = new JsonExporter();
             exporter.Export(merged, paths.JsonFile);
@@ -130,7 +133,7 @@ AppRunner.Run(() =>
             Log.Info($"JSON出力: {merged.Count}件");
 
             // -------------------------
-            // 7. Git処理
+            // 7. Git処理（UTF-8固定）
             // -------------------------
             Directory.SetCurrentDirectory(paths.RootDir);
 
@@ -167,7 +170,7 @@ AppRunner.Run(() =>
 
 
 // =========================
-// Git実行
+// Git実行（★重要修正：UTF-8固定）
 // =========================
 void RunGit(string args)
 {
@@ -180,7 +183,11 @@ void RunGit(string args)
         RedirectStandardOutput = true,
         RedirectStandardError = true,
         UseShellExecute = false,
-        CreateNoWindow = true
+        CreateNoWindow = true,
+
+        // ★ ここが重要（文字化け対策の本丸）
+        StandardOutputEncoding = Encoding.UTF8,
+        StandardErrorEncoding = Encoding.UTF8
     };
 
     using var proc = Process.Start(psi);
@@ -211,7 +218,7 @@ bool IsRebaseInProgress()
 
 
 // =========================
-// JSONラッパー
+// JSON wrapper
 // =========================
 public class JsonWrapper
 {
