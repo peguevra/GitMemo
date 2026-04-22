@@ -11,9 +11,7 @@ h1 {
     margin-bottom: 12px;
 }
 
-/* =====================
-   フォーム（固定）
-===================== */
+/* フォーム固定 */
 #formBox {
     position: sticky;
     top: 0;
@@ -23,10 +21,11 @@ h1 {
     z-index: 10;
 }
 
-/* ★ iPhoneズーム対策 */
-input {
+/* ★ iPhoneズーム完全対策 */
+input,
+textarea {
     width: 100%;
-    font-size: 16px; /* ←最重要 */
+    font-size: 16px;   /* ←これが本体 */
     margin-bottom: 6px;
     padding: 8px;
     box-sizing: border-box;
@@ -34,7 +33,7 @@ input {
     border-radius: 6px;
 }
 
-/* ボタンはタップしやすく */
+/* ボタン */
 button {
     width: 100%;
     padding: 10px;
@@ -46,14 +45,11 @@ button {
     color: white;
 }
 
-/* 削除モード時（JSでclass付与してもOK） */
 button.danger {
     background: #ff3b30;
 }
 
-/* =====================
-   リスト
-===================== */
+/* リスト */
 .item {
     display: flex;
     align-items: flex-start;
@@ -67,7 +63,6 @@ button.danger {
     word-break: break-word;
 }
 
-/* チェックボックス固定 */
 .check {
     width: 24px;
     flex-shrink: 0;
@@ -75,24 +70,20 @@ button.danger {
     margin-top: 4px;
 }
 
-/* 本文は残り幅 */
 .content {
     flex: 1;
     min-width: 0;
 }
 
-/* 時刻 */
 .time {
     font-size: 12px;
     color: #666;
 }
 
-/* タイトル */
 .title {
     font-size: 16px;
 }
 
-/* 選択時の視覚フィードバック（任意） */
 .item.selected {
     background: #ffecec;
 }
