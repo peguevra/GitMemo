@@ -2,7 +2,7 @@ namespace CTool.Models;
 
 public class ParsedMemo
 {
-    public required string Era { get; set; }
+    public string Era { get; set; }
 
     public int Year { get; set; }
 
@@ -12,9 +12,9 @@ public class ParsedMemo
 
     public int? DayEnd { get; set; }
 
-    public required string Time { get; set; }
+    public string Time { get; set; }
 
-    public required string Rest { get; set; }
+    public string Rest { get; set; }
 
-    public required string Raw { get; set; }
+    public string Raw { get; set; }
 }

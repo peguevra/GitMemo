@@ -21,6 +21,6 @@ public class GitHubImporter
     private class Wrapper
     {
         public int version { get; set; }
-        public List<Event>? events { get; set; }
+        public List<Event> events { get; set; }
     }
 }

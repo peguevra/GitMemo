@@ -9,13 +9,13 @@ public class TextExporter
     {
         var lines = events
             .OrderBy(e => e.StartDateTime)
-            .Select(e => ToLine(e))
+            .Select(ToLine)
             .ToList();
 
         File.WriteAllLines(
             path,
             lines,
-            Encoding.GetEncoding(932)
+            Encoding.GetEncoding("shift_jis")
         );
     }
 
