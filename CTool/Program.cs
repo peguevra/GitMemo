@@ -102,7 +102,7 @@ class Program
             }
         }
 
-        // ---------- ★重複除去（最重要） ----------
+        // ---------- 重複除去 ----------
         var uniqueEvents = newEvents
             .GroupBy(x => x.Id)
             .Select(g => g.First())
@@ -114,7 +114,7 @@ class Program
 
         var oldEvents = importer.Fetch(url).Result;
 
-        // ---------- 差分（※必ずuniqueを使う） ----------
+        // ---------- 差分 ----------
         var diff = GetDiff(oldEvents, uniqueEvents);
 
         Log.Info($"追加: {diff.Added.Count}");
@@ -129,11 +129,10 @@ class Program
 
         Log.Info($"JSON出力: {uniqueEvents.Count}件");
 
-        // ---------- 差分があるときだけGit ----------
+        // ---------- Git ----------
         if (diff.HasChanges)
         {
             RunGit("pull");
-
             RunGit("add .");
             RunGit("commit -m \"update\"");
             RunGit("push");
@@ -147,11 +146,10 @@ class Program
     }
 
     // =========================
-    // 差分検出（安全版）
+    // 差分検出
     // =========================
     static DiffResult GetDiff(List<Event> oldList, List<Event> newList)
     {
-        // ★ 念のためここでもユニーク化（完全防御）
         var oldDict = oldList
             .GroupBy(x => x.Id)
             .ToDictionary(g => g.Key, g => g.First());
@@ -212,7 +210,7 @@ class Program
     }
 
     // =========================
-    // Git実行
+    // Git実行（修正版）
     // =========================
     static void RunGit(string args)
     {
@@ -243,7 +241,20 @@ class Program
         if (!string.IsNullOrWhiteSpace(output))
             Console.WriteLine(output);
 
-        if (!string.IsNullOrWhiteSpace(error))
-            Console.WriteLine("Git Error: " + error);
+        // ★ ここが重要：エラー判定をExitCodeで行う
+        if (proc.ExitCode != 0)
+        {
+            Console.WriteLine("Git ERROR!");
+            Console.WriteLine(error);
+        }
+        else
+        {
+            // 正常時のstderrはログ扱い
+            if (!string.IsNullOrWhiteSpace(error))
+            {
+                Console.WriteLine("[git log]");
+                Console.WriteLine(error);
+            }
+        }
     }
 }
