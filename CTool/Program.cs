@@ -59,13 +59,11 @@ class Program
     static void RunPull(GlobalPaths paths)
     {
         var importer = new GitHubImporter();
-
         var url = "https://peguevra.github.io/GitMemo/data/events.json";
 
         var remoteEvents = importer.Fetch(url).Result;
 
         var textExporter = new TextExporter();
-
         textExporter.Export(remoteEvents, paths.InputFile);
 
         Log.Info($"GitHub取込: {remoteEvents.Count}件");
@@ -88,7 +86,7 @@ class Program
         var builder = new EventBuilder();
         var newEvents = builder.Build(parsed);
 
-        // ---------- 重複チェック ----------
+        // ---------- 重複検出 ----------
         var dupGroups = newEvents
             .GroupBy(x => x.Id)
             .Where(g => g.Count() > 1)
@@ -104,8 +102,8 @@ class Program
             }
         }
 
-        // ★ 重複は先頭のみ採用（安全化）
-        newEvents = newEvents
+        // ---------- ★重複除去（最重要） ----------
+        var uniqueEvents = newEvents
             .GroupBy(x => x.Id)
             .Select(g => g.First())
             .ToList();
@@ -116,8 +114,8 @@ class Program
 
         var oldEvents = importer.Fetch(url).Result;
 
-        // ---------- 差分 ----------
-        var diff = GetDiff(oldEvents, newEvents);
+        // ---------- 差分（※必ずuniqueを使う） ----------
+        var diff = GetDiff(oldEvents, uniqueEvents);
 
         Log.Info($"追加: {diff.Added.Count}");
         Log.Info($"削除: {diff.Removed.Count}");
@@ -126,12 +124,12 @@ class Program
         // ---------- JSON出力 ----------
         var exporter = new JsonExporter();
 
-        exporter.Export(newEvents, paths.JsonFile);
-        exporter.Export(newEvents, paths.WebJsonFile);
+        exporter.Export(uniqueEvents, paths.JsonFile);
+        exporter.Export(uniqueEvents, paths.WebJsonFile);
 
-        Log.Info($"JSON出力: {newEvents.Count}件");
+        Log.Info($"JSON出力: {uniqueEvents.Count}件");
 
-        // ---------- 差分あるときだけGit ----------
+        // ---------- 差分があるときだけGit ----------
         if (diff.HasChanges)
         {
             RunGit("pull");
@@ -149,18 +147,23 @@ class Program
     }
 
     // =========================
-    // 差分検出
+    // 差分検出（安全版）
     // =========================
     static DiffResult GetDiff(List<Event> oldList, List<Event> newList)
     {
-        var oldDict = oldList.ToDictionary(x => x.Id);
-        var newDict = newList.ToDictionary(x => x.Id);
+        // ★ 念のためここでもユニーク化（完全防御）
+        var oldDict = oldList
+            .GroupBy(x => x.Id)
+            .ToDictionary(g => g.Key, g => g.First());
+
+        var newDict = newList
+            .GroupBy(x => x.Id)
+            .ToDictionary(g => g.Key, g => g.First());
 
         var added = new List<Event>();
         var removed = new List<Event>();
         var updated = new List<Event>();
 
-        // 追加 & 更新
         foreach (var kv in newDict)
         {
             if (!oldDict.ContainsKey(kv.Key))
@@ -180,7 +183,6 @@ class Program
             }
         }
 
-        // 削除
         foreach (var kv in oldDict)
         {
             if (!newDict.ContainsKey(kv.Key))
