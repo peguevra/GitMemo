@@ -46,8 +46,17 @@ button {
     padding: 6px 0;
 }
 
+/* ★ チェック幅固定 */
 .check {
+    width: 24px;
+    flex-shrink: 0;
     margin-right: 6px;
+}
+
+/* ★ 本文は残り全部使う */
+.content {
+    flex: 1;
+    min-width: 0;
 }
 
 .time {
@@ -72,7 +81,6 @@ button {
     <input id="title" placeholder="内容">
     <button onclick="add()">追加</button>
 
-    <!-- ★ ボタン1つに統合 -->
     <button id="deleteBtn" onclick="handleDeleteButton()">削除モード</button>
 </div>
 
@@ -84,8 +92,6 @@ const API_URL = "https://gitmemo-api.donation9196999.workers.dev";
 
 let deleteMode = false;
 
-// =====================
-// 一覧ロード
 // =====================
 async function load() {
 
@@ -110,7 +116,7 @@ async function load() {
 
         div.innerHTML = `
             ${checkbox}
-            <div>
+            <div class="content">
                 <div class="time">${e.StartDateTime.replace('T',' ')}</div>
                 <div class="title">${e.Title}</div>
             </div>
@@ -121,23 +127,17 @@ async function load() {
 }
 
 // =====================
-// 削除ボタン制御
-// =====================
 function handleDeleteButton() {
 
     if (!deleteMode) {
-        // モードON
         deleteMode = true;
         document.getElementById('deleteBtn').innerText = "削除実行";
         load();
     } else {
-        // 実行
         deleteSelected();
     }
 }
 
-// =====================
-// 追加
 // =====================
 async function add() {
 
@@ -162,14 +162,11 @@ async function add() {
 
     const res = await fetch(API_URL, {
         method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(obj)
     });
 
     const text = await res.text();
-
     alert(text);
 
     if (text.startsWith("OK")) {
@@ -178,38 +175,40 @@ async function add() {
 }
 
 // =====================
-// 選択削除
-// =====================
 async function deleteSelected() {
 
     const checks = document.querySelectorAll('.check:checked');
 
+    // ★ 選択なしでもモード終了
     if (checks.length === 0) {
         alert("選択なし");
+        exitDeleteMode();
         return;
     }
 
-    // ★ 確認ダイアログ
-    if (!confirm(`${checks.length}件削除しますか？`)) {
-        return;
+    // ★ OKでもCancelでも終了
+    const ok = confirm(`${checks.length}件削除しますか？`);
+
+    if (ok) {
+        for (let c of checks) {
+            await fetch(API_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ deleteId: c.value })
+            });
+        }
+
+        alert("削除完了");
     }
 
-    for (let c of checks) {
-        await fetch(API_URL, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({ deleteId: c.value })
-        });
-    }
+    // ★ 必ず終了
+    exitDeleteMode();
+}
 
-    alert("削除完了");
-
-    // モード解除
+// =====================
+function exitDeleteMode() {
     deleteMode = false;
     document.getElementById('deleteBtn').innerText = "削除モード";
-
     load();
 }
 
