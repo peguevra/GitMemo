@@ -14,7 +14,7 @@ internal class Program
         {
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
-            // ★ コンソール（cmd互換）
+            // ★ コンソール（shift_jis）
             Console.InputEncoding = Encoding.GetEncoding("shift_jis");
             Console.OutputEncoding = Encoding.GetEncoding("shift_jis");
 
@@ -75,24 +75,21 @@ internal class Program
                     Log.Info($"JSON出力: {events.Count}件");
 
                     // =========================
-                    // Git 自動処理
+                    // Git処理（安定版）
                     // =========================
 
                     Directory.SetCurrentDirectory(paths.RootDir);
 
-                    RunGit("status");
+                    // ★ 安全化：まずローカル状態リセット
+                    RunGit("reset --hard");
+
+                    // ★ リモート同期
                     RunGit("pull --rebase");
 
-                    if (IsRebaseInProgress())
-                    {
-                        Log.Info("コンフリクト検出 → 自動解決");
-
-                        RunGit("checkout --ours docs/data/events.json");
-                        RunGit("add docs/data/events.json");
-                        RunGit("rebase --continue");
-                    }
-
-                    RunGit("add .");
+                    // =========================
+                    // commit対象はJSONのみ
+                    // =========================
+                    RunGit("add docs/data/events.json");
                     RunGit("commit -m \"update\"");
                     RunGit("push");
 
@@ -143,16 +140,5 @@ internal class Program
 
         if (!string.IsNullOrWhiteSpace(error))
             Console.WriteLine("Git Error: " + error);
-    }
-
-    // =========================
-    // rebase判定
-    // =========================
-    static bool IsRebaseInProgress()
-    {
-        var gitDir = ".git";
-
-        return Directory.Exists(Path.Combine(gitDir, "rebase-apply")) ||
-               Directory.Exists(Path.Combine(gitDir, "rebase-merge"));
     }
 }
