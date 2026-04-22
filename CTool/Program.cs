@@ -8,6 +8,10 @@ AppRunner.Run(() =>
 {
     Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
+    // ★ 追加：コンソール文字コード固定（Shift-JIS）
+    Console.InputEncoding = Encoding.GetEncoding("shift_jis");
+    Console.OutputEncoding = Encoding.GetEncoding("shift_jis");
+
     var paths = new GlobalPaths();
     paths.Ensure();
 
@@ -70,7 +74,6 @@ AppRunner.Run(() =>
             // Git 自動処理（完全自動）
             // =========================
 
-            // ★ リポジトリルートへ移動
             Directory.SetCurrentDirectory(paths.RootDir);
 
             RunGit("status");
@@ -78,7 +81,7 @@ AppRunner.Run(() =>
             // ① pull（rebase）
             RunGit("pull --rebase");
 
-            // ② コンフリクト強制解決（JSONはローカル優先）
+            // ② コンフリクト自動解決
             if (IsRebaseInProgress())
             {
                 Log.Info("コンフリクト検出 → 自動解決");
