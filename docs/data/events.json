@@ -2,13 +2,6 @@
   "version": 1,
   "events": [
     {
-      "Id": "20260602_1100_FB9A21",
-      "StartDateTime": "2026-06-02T11:00:00",
-      "EndDateTime": null,
-      "Title": "金田病院 河内さん 皮膚科",
-      "Raw": "R8.06.02 11:00 金田病院　河内さん　皮膚科"
-    },
-    {
       "Id": "1776742064648",
       "StartDateTime": "2026-04-21T11:00:00",
       "EndDateTime": null,
