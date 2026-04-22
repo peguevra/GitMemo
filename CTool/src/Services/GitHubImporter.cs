@@ -10,7 +10,9 @@ public class GitHubImporter
     {
         using var client = new HttpClient();
 
-        var json = await client.GetStringAsync(url);
+        // ★ 重要：文字コード推測を完全排除（UTF-8固定）
+        var bytes = await client.GetByteArrayAsync(url);
+        var json = Encoding.UTF8.GetString(bytes);
 
         var doc = JsonSerializer.Deserialize<Wrapper>(json);
 
