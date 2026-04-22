@@ -50,6 +50,7 @@ AppRunner.Run(() =>
         // =========================
         else if (mode == "push")
         {
+            // ---------- TXT → JSON ----------
             var lines = File.ReadAllLines(
                 paths.InputFile,
                 Encoding.GetEncoding("shift_jis")
@@ -68,9 +69,8 @@ AppRunner.Run(() =>
 
             Log.Info($"JSON出力: {events.Count}件");
 
-            // =========================
-            // Git 自動 push
-            // =========================
+            // ---------- Git処理 ----------
+            RunGit("pull --rebase");
             RunGit("add .");
             RunGit("commit -m \"update\"");
             RunGit("push");
@@ -91,13 +91,21 @@ AppRunner.Run(() =>
 });
 
 
-// ★ Git実行ヘルパー
+// =========================
+// Git実行ヘルパー
+// =========================
 void RunGit(string args)
 {
+    // ★ リポジトリルート（GitMemo）
+    var repoRoot = Path.GetFullPath(
+        Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..")
+    );
+
     var psi = new ProcessStartInfo
     {
         FileName = "git",
         Arguments = args,
+        WorkingDirectory = repoRoot,   // ★これが最重要
         RedirectStandardOutput = true,
         RedirectStandardError = true,
         UseShellExecute = false,
@@ -111,10 +119,11 @@ void RunGit(string args)
 
     proc.WaitForExit();
 
-    Console.WriteLine(output);
+    Console.WriteLine($"[git {args}]");
+
+    if (!string.IsNullOrWhiteSpace(output))
+        Console.WriteLine(output);
 
     if (!string.IsNullOrWhiteSpace(error))
-    {
         Console.WriteLine("Git Error: " + error);
-    }
 }
