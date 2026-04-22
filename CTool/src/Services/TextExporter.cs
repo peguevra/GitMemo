@@ -15,7 +15,7 @@ public class TextExporter
         File.WriteAllLines(
             path,
             lines,
-            Encoding.GetEncoding("shift_jis")
+            Encoding.UTF8
         );
     }
 

@@ -8,9 +8,9 @@ AppRunner.Run(() =>
 {
     Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
-    // ★ 追加：コンソール文字コード固定（Shift-JIS）
-    Console.InputEncoding = Encoding.GetEncoding("shift_jis");
-    Console.OutputEncoding = Encoding.GetEncoding("shift_jis");
+    // ★ UTF-8統一
+    Console.InputEncoding = Encoding.UTF8;
+    Console.OutputEncoding = Encoding.UTF8;
 
     var paths = new GlobalPaths();
     paths.Ensure();
@@ -52,11 +52,8 @@ AppRunner.Run(() =>
         // =========================
         else if (mode == "push")
         {
-            // TXT → JSON
-            var lines = File.ReadAllLines(
-                paths.InputFile,
-                Encoding.GetEncoding("shift_jis")
-            );
+            // ★ UTF-8読み込み
+            var lines = File.ReadAllLines(paths.InputFile, Encoding.UTF8);
 
             var parser = new MemoParser();
             var parsed = parser.Parse(lines);
@@ -71,17 +68,14 @@ AppRunner.Run(() =>
             Log.Info($"JSON出力: {events.Count}件");
 
             // =========================
-            // Git 自動処理（完全自動）
+            // Git 自動処理
             // =========================
 
             Directory.SetCurrentDirectory(paths.RootDir);
 
             RunGit("status");
-
-            // ① pull（rebase）
             RunGit("pull --rebase");
 
-            // ② コンフリクト自動解決
             if (IsRebaseInProgress())
             {
                 Log.Info("コンフリクト検出 → 自動解決");
@@ -91,11 +85,8 @@ AppRunner.Run(() =>
                 RunGit("rebase --continue");
             }
 
-            // ③ commit
             RunGit("add .");
             RunGit("commit -m \"update\"");
-
-            // ④ push
             RunGit("push");
 
             Log.Info("Git push 完了");
