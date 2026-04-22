@@ -54,7 +54,7 @@ class Program
     }
 
     // =========================
-    // pull
+    // pull（GitHub → TXT）
     // =========================
     static void RunPull(GlobalPaths paths)
     {
@@ -72,10 +72,11 @@ class Program
     }
 
     // =========================
-    // push
+    // push（TXT → JSON → Git）
     // =========================
     static void RunPush(GlobalPaths paths)
     {
+        // ---------- TXT読込 ----------
         var lines = File.ReadAllLines(
             paths.InputFile,
             Encoding.GetEncoding("shift_jis")
@@ -87,25 +88,54 @@ class Program
         var builder = new EventBuilder();
         var newEvents = builder.Build(parsed);
 
+        // ---------- 重複チェック ----------
+        var dupGroups = newEvents
+            .GroupBy(x => x.Id)
+            .Where(g => g.Count() > 1)
+            .ToList();
+
+        if (dupGroups.Any())
+        {
+            Log.Error($"重複ID検出: {dupGroups.Count}件");
+
+            foreach (var g in dupGroups)
+            {
+                Log.Error($"ID重複: {g.Key} / 件数: {g.Count()}");
+            }
+        }
+
+        // ★ 重複は先頭のみ採用（安全化）
+        newEvents = newEvents
+            .GroupBy(x => x.Id)
+            .Select(g => g.First())
+            .ToList();
+
+        // ---------- 既存JSON取得 ----------
         var importer = new GitHubImporter();
         var url = "https://peguevra.github.io/GitMemo/data/events.json";
 
         var oldEvents = importer.Fetch(url).Result;
 
+        // ---------- 差分 ----------
         var diff = GetDiff(oldEvents, newEvents);
 
         Log.Info($"追加: {diff.Added.Count}");
         Log.Info($"削除: {diff.Removed.Count}");
         Log.Info($"変更: {diff.Updated.Count}");
 
+        // ---------- JSON出力 ----------
         var exporter = new JsonExporter();
 
         exporter.Export(newEvents, paths.JsonFile);
         exporter.Export(newEvents, paths.WebJsonFile);
 
+        Log.Info($"JSON出力: {newEvents.Count}件");
+
+        // ---------- 差分あるときだけGit ----------
         if (diff.HasChanges)
         {
             RunGit("pull");
+
             RunGit("add .");
             RunGit("commit -m \"update\"");
             RunGit("push");
@@ -119,7 +149,7 @@ class Program
     }
 
     // =========================
-    // 差分
+    // 差分検出
     // =========================
     static DiffResult GetDiff(List<Event> oldList, List<Event> newList)
     {
@@ -130,6 +160,7 @@ class Program
         var removed = new List<Event>();
         var updated = new List<Event>();
 
+        // 追加 & 更新
         foreach (var kv in newDict)
         {
             if (!oldDict.ContainsKey(kv.Key))
@@ -149,6 +180,7 @@ class Program
             }
         }
 
+        // 削除
         foreach (var kv in oldDict)
         {
             if (!newDict.ContainsKey(kv.Key))
@@ -178,7 +210,7 @@ class Program
     }
 
     // =========================
-    // Git
+    // Git実行
     // =========================
     static void RunGit(string args)
     {
