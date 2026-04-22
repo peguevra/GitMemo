@@ -15,7 +15,6 @@ h1 {
     font-size: 20px;
 }
 
-/* フォーム固定 */
 #formBox {
     position: sticky;
     top: 0;
@@ -35,14 +34,20 @@ input {
 
 button {
     width: 100%;
-    padding: 6px;
+    padding: 8px;
     font-size: 14px;
     margin-bottom: 5px;
 }
 
 .item {
+    display: flex;
+    align-items: flex-start;
     border-bottom: 1px solid #ddd;
     padding: 6px 0;
+}
+
+.check {
+    margin-right: 6px;
 }
 
 .time {
@@ -54,13 +59,7 @@ button {
     font-size: 14px;
     word-break: break-word;
 }
-
-.delbtn {
-    font-size: 12px;
-    margin-top: 4px;
-}
 </style>
-
 </head>
 
 <body>
@@ -72,49 +71,73 @@ button {
     <input id="time" placeholder="11:00">
     <input id="title" placeholder="内容">
     <button onclick="add()">追加</button>
+
+    <!-- ★ ボタン1つに統合 -->
+    <button id="deleteBtn" onclick="handleDeleteButton()">削除モード</button>
 </div>
 
 <div id="list"></div>
 
 <script>
 
-const API_URL = "https://gitmemo-api.donation9196999.workers.dev"; // ★必ず自分のURLに変更
+const API_URL = "https://gitmemo-api.donation9196999.workers.dev";
+
+let deleteMode = false;
 
 // =====================
 // 一覧ロード
 // =====================
 async function load() {
 
-    try {
-        const res = await fetch('./data/events.json?nocache=' + Date.now());
-        const json = await res.json();
+    const res = await fetch('./data/events.json?nocache=' + Date.now());
+    const json = await res.json();
 
-        const list = document.getElementById('list');
-        list.innerHTML = "";
+    const list = document.getElementById('list');
+    list.innerHTML = "";
 
-        json.events
-            .sort((a,b) => new Date(b.StartDateTime) - new Date(a.StartDateTime))
-            .forEach(e => {
+    json.events
+        .sort((a,b) => new Date(b.StartDateTime) - new Date(a.StartDateTime))
+        .forEach(e => {
 
-            const div = document.createElement('div');
-            div.className = 'item';
+        const div = document.createElement('div');
+        div.className = 'item';
 
-            div.innerHTML = `
+        let checkbox = "";
+
+        if (deleteMode) {
+            checkbox = `<input type="checkbox" class="check" value="${e.Id}">`;
+        }
+
+        div.innerHTML = `
+            ${checkbox}
+            <div>
                 <div class="time">${e.StartDateTime.replace('T',' ')}</div>
                 <div class="title">${e.Title}</div>
-                <button class="delbtn" onclick="del('${e.Id}')">削除</button>
-            `;
+            </div>
+        `;
 
-            list.appendChild(div);
-        });
+        list.appendChild(div);
+    });
+}
 
-    } catch(e) {
-        alert("JSON取得失敗: " + e);
+// =====================
+// 削除ボタン制御
+// =====================
+function handleDeleteButton() {
+
+    if (!deleteMode) {
+        // モードON
+        deleteMode = true;
+        document.getElementById('deleteBtn').innerText = "削除実行";
+        load();
+    } else {
+        // 実行
+        deleteSelected();
     }
 }
 
 // =====================
-// 追加（デバッグ付き）
+// 追加
 // =====================
 async function add() {
 
@@ -137,54 +160,57 @@ async function add() {
         Raw: "from iPhone"
     };
 
-    try {
-        const res = await fetch(API_URL, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(obj)
-        });
+    const res = await fetch(API_URL, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(obj)
+    });
 
-        const text = await res.text();
+    const text = await res.text();
 
-        alert("API応答: " + text);
+    alert(text);
 
-        // 成功時のみ再読込
-        if (text.startsWith("OK")) {
-            load();
-        }
-
-    } catch(e) {
-        alert("通信失敗: " + e);
+    if (text.startsWith("OK")) {
+        load();
     }
 }
 
 // =====================
-// 削除
+// 選択削除
 // =====================
-async function del(id) {
+async function deleteSelected() {
 
-    try {
-        const res = await fetch(API_URL, {
+    const checks = document.querySelectorAll('.check:checked');
+
+    if (checks.length === 0) {
+        alert("選択なし");
+        return;
+    }
+
+    // ★ 確認ダイアログ
+    if (!confirm(`${checks.length}件削除しますか？`)) {
+        return;
+    }
+
+    for (let c of checks) {
+        await fetch(API_URL, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
             },
-            body: JSON.stringify({ deleteId: id })
+            body: JSON.stringify({ deleteId: c.value })
         });
-
-        const text = await res.text();
-
-        alert("削除応答: " + text);
-
-        if (text.startsWith("OK")) {
-            load();
-        }
-
-    } catch(e) {
-        alert("削除失敗: " + e);
     }
+
+    alert("削除完了");
+
+    // モード解除
+    deleteMode = false;
+    document.getElementById('deleteBtn').innerText = "削除モード";
+
+    load();
 }
 
 load();
