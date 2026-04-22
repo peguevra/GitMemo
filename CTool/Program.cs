@@ -8,9 +8,9 @@ AppRunner.Run(() =>
 {
     Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
-    // ★ UTF-8統一
-    Console.InputEncoding = Encoding.UTF8;
-    Console.OutputEncoding = Encoding.UTF8;
+    // ★ コンソール（cmd互換）
+    Console.InputEncoding = Encoding.GetEncoding("shift_jis");
+    Console.OutputEncoding = Encoding.GetEncoding("shift_jis");
 
     var paths = new GlobalPaths();
     paths.Ensure();
@@ -52,8 +52,11 @@ AppRunner.Run(() =>
         // =========================
         else if (mode == "push")
         {
-            // ★ UTF-8読み込み
-            var lines = File.ReadAllLines(paths.InputFile, Encoding.UTF8);
+            // ★ Shift-JIS読み込み（重要）
+            var lines = File.ReadAllLines(
+                paths.InputFile,
+                Encoding.GetEncoding("shift_jis")
+            );
 
             var parser = new MemoParser();
             var parsed = parser.Parse(lines);
@@ -106,7 +109,7 @@ AppRunner.Run(() =>
 
 
 // =========================
-// Git 実行
+// Git実行
 // =========================
 void RunGit(string args)
 {
@@ -119,7 +122,9 @@ void RunGit(string args)
         RedirectStandardOutput = true,
         RedirectStandardError = true,
         UseShellExecute = false,
-        CreateNoWindow = true
+        CreateNoWindow = true,
+        StandardOutputEncoding = Encoding.GetEncoding("shift_jis"),
+        StandardErrorEncoding = Encoding.GetEncoding("shift_jis")
     };
 
     using var proc = Process.Start(psi);
@@ -138,7 +143,7 @@ void RunGit(string args)
 
 
 // =========================
-// rebase中判定
+// rebase判定
 // =========================
 bool IsRebaseInProgress()
 {
