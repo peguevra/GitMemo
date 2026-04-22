@@ -11,22 +11,88 @@ h1 {
     margin-bottom: 12px;
 }
 
+/* =====================
+   フォーム（固定）
+===================== */
+#formBox {
+    position: sticky;
+    top: 0;
+    background: #ffffff;
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
+    z-index: 10;
+}
+
+/* ★ iPhoneズーム対策 */
+input {
+    width: 100%;
+    font-size: 16px; /* ←最重要 */
+    margin-bottom: 6px;
+    padding: 8px;
+    box-sizing: border-box;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+}
+
+/* ボタンはタップしやすく */
+button {
+    width: 100%;
+    padding: 10px;
+    font-size: 15px;
+    margin-bottom: 6px;
+    border: none;
+    border-radius: 6px;
+    background: #007aff;
+    color: white;
+}
+
+/* 削除モード時（JSでclass付与してもOK） */
+button.danger {
+    background: #ff3b30;
+}
+
+/* =====================
+   リスト
+===================== */
 .item {
+    display: flex;
+    align-items: flex-start;
+
     background: white;
     margin-bottom: 10px;
     padding: 10px;
     border-radius: 8px;
 
-    /* ★重要：読みやすさ */
     line-height: 1.6;
     word-break: break-word;
 }
 
+/* チェックボックス固定 */
+.check {
+    width: 24px;
+    flex-shrink: 0;
+    margin-right: 8px;
+    margin-top: 4px;
+}
+
+/* 本文は残り幅 */
+.content {
+    flex: 1;
+    min-width: 0;
+}
+
+/* 時刻 */
 .time {
     font-size: 12px;
     color: #666;
 }
 
+/* タイトル */
 .title {
     font-size: 16px;
+}
+
+/* 選択時の視覚フィードバック（任意） */
+.item.selected {
+    background: #ffecec;
 }
