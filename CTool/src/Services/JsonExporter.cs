@@ -25,22 +25,26 @@ public class JsonExporter
         var newJson = JsonSerializer.Serialize(wrapper, options);
 
         // =========================
-        // ★ 差分チェック追加
+        // 既存ファイル比較
         // =========================
         if (File.Exists(path))
         {
             var oldJson = File.ReadAllText(path);
 
-            if (oldJson == newJson)
+            if (Normalize(oldJson) == Normalize(newJson))
             {
-                Console.WriteLine("[JSON] 変更なし（スキップ）");
-                return false;
+                return false; // 変更なし
             }
         }
 
         File.WriteAllText(path, newJson);
-        Console.WriteLine("[JSON] 更新あり");
+        return true; // 変更あり
+    }
 
-        return true;
+    private string Normalize(string json)
+    {
+        return json
+            .Replace("\r", "")
+            .Trim();
     }
 }
