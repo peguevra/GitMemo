@@ -5,7 +5,7 @@ namespace CTool.Services;
 
 public class JsonExporter
 {
-    public void Export(IEnumerable<Event> events, string path)
+    public bool Export(IEnumerable<Event> events, string path)
     {
         var sorted = events
             .OrderBy(e => e.StartDateTime)
@@ -22,8 +22,25 @@ public class JsonExporter
             WriteIndented = true
         };
 
-        var json = JsonSerializer.Serialize(wrapper, options);
+        var newJson = JsonSerializer.Serialize(wrapper, options);
 
-        File.WriteAllText(path, json);
+        // =========================
+        // ★ 差分チェック追加
+        // =========================
+        if (File.Exists(path))
+        {
+            var oldJson = File.ReadAllText(path);
+
+            if (oldJson == newJson)
+            {
+                Console.WriteLine("[JSON] 変更なし（スキップ）");
+                return false;
+            }
+        }
+
+        File.WriteAllText(path, newJson);
+        Console.WriteLine("[JSON] 更新あり");
+
+        return true;
     }
 }
