@@ -4,149 +4,155 @@ using CommonBatchFramework.App;
 using CTool;
 using CTool.Services;
 
-AppRunner.Run(() =>
+namespace CTool;
+
+internal class Program
 {
-    Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-
-    Console.InputEncoding = Encoding.GetEncoding("shift_jis");
-    Console.OutputEncoding = Encoding.GetEncoding("shift_jis");
-
-    var paths = new GlobalPaths();
-    paths.Ensure();
-
-    Log.Initialize(paths.OutputDir);
-
-    Log.Info("CTool batch start");
-
-    try
+    static void Main(string[] args)
     {
-        var args = Environment.GetCommandLineArgs();
-
-        if (args.Length < 2)
+        AppRunner.Run(() =>
         {
-            Log.Error("コマンド指定: pull / push");
-            return;
-        }
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
-        var mode = args[1].ToLower();
+            // ★ コンソール（cmd互換）
+            Console.InputEncoding = Encoding.GetEncoding("shift_jis");
+            Console.OutputEncoding = Encoding.GetEncoding("shift_jis");
 
-        // =========================
-        // pull（GitHub → TXT）
-        // =========================
-        if (mode == "pull")
-        {
-            var importer = new GitHubImporter();
-            var url = "https://peguevra.github.io/GitMemo/data/events.json";
+            var paths = new GlobalPaths();
+            paths.Ensure();
 
-            var remoteEvents = importer.Fetch(url).Result;
+            Log.Initialize(paths.OutputDir);
 
-            var textExporter = new TextExporter();
-            textExporter.Export(remoteEvents, paths.InputFile);
+            Log.Info("CTool batch start");
 
-            Log.Info($"GitHub取込: {remoteEvents.Count}件");
-        }
-
-        // =========================
-        // push（TXT → JSON → Git）
-        // =========================
-        else if (mode == "push")
-        {
-            // ★ Shift-JIS読み取り（安定版）
-            var encoding = Encoding.GetEncoding("shift_jis");
-
-            var lines = File.ReadLines(paths.InputFile, encoding)
-                             .ToArray();
-
-            var parser = new MemoParser();
-            var parsed = parser.Parse(lines);
-
-            var builder = new EventBuilder();
-            var events = builder.Build(parsed);
-
-            var exporter = new JsonExporter();
-            exporter.Export(events, paths.JsonFile);
-            exporter.Export(events, paths.WebJsonFile);
-
-            Log.Info($"JSON出力: {events.Count}件");
-
-            // =========================
-            // Git 自動処理
-            // =========================
-            Directory.SetCurrentDirectory(paths.RootDir);
-
-            RunGit("status");
-            RunGit("pull --rebase");
-
-            if (IsRebaseInProgress())
+            try
             {
-                Log.Info("コンフリクト検出 → 自動解決");
+                if (args.Length < 1)
+                {
+                    Log.Error("コマンド指定: pull / push");
+                    return;
+                }
 
-                RunGit("checkout --ours docs/data/events.json");
-                RunGit("add docs/data/events.json");
-                RunGit("rebase --continue");
+                var mode = args[0].ToLower();
+
+                // =========================
+                // pull（GitHub → TXT）
+                // =========================
+                if (mode == "pull")
+                {
+                    var importer = new GitHubImporter();
+
+                    var url = "https://peguevra.github.io/GitMemo/data/events.json";
+
+                    var remoteEvents = importer.Fetch(url).Result;
+
+                    var textExporter = new TextExporter();
+                    textExporter.Export(remoteEvents, paths.InputFile);
+
+                    Log.Info($"GitHub取込: {remoteEvents.Count}件");
+                }
+
+                // =========================
+                // push（TXT → JSON → Git）
+                // =========================
+                else if (mode == "push")
+                {
+                    var lines = File.ReadAllLines(
+                        paths.InputFile,
+                        Encoding.GetEncoding("shift_jis")
+                    );
+
+                    var parser = new MemoParser();
+                    var parsed = parser.Parse(lines);
+
+                    var builder = new EventBuilder();
+                    var events = builder.Build(parsed);
+
+                    var exporter = new JsonExporter();
+                    exporter.Export(events, paths.JsonFile);
+                    exporter.Export(events, paths.WebJsonFile);
+
+                    Log.Info($"JSON出力: {events.Count}件");
+
+                    // =========================
+                    // Git 自動処理
+                    // =========================
+
+                    Directory.SetCurrentDirectory(paths.RootDir);
+
+                    RunGit("status");
+                    RunGit("pull --rebase");
+
+                    if (IsRebaseInProgress())
+                    {
+                        Log.Info("コンフリクト検出 → 自動解決");
+
+                        RunGit("checkout --ours docs/data/events.json");
+                        RunGit("add docs/data/events.json");
+                        RunGit("rebase --continue");
+                    }
+
+                    RunGit("add .");
+                    RunGit("commit -m \"update\"");
+                    RunGit("push");
+
+                    Log.Info("Git push 完了");
+                }
+                else
+                {
+                    Log.Error("不明コマンド: pull / push");
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"致命的エラー: {ex.Message}");
             }
 
-            RunGit("add .");
-            RunGit("commit -m \"update\"");
-            RunGit("push");
+            Log.Info("CTool batch end");
+        });
+    }
 
-            Log.Info("Git push 完了");
-        }
-        else
+    // =========================
+    // Git実行
+    // =========================
+    static void RunGit(string args)
+    {
+        Log.Info($"[git {args}]");
+
+        var psi = new ProcessStartInfo
         {
-            Log.Error("不明コマンド: pull / push");
-        }
+            FileName = "git",
+            Arguments = args,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            StandardOutputEncoding = Encoding.GetEncoding("shift_jis"),
+            StandardErrorEncoding = Encoding.GetEncoding("shift_jis")
+        };
+
+        using var proc = Process.Start(psi);
+
+        string output = proc.StandardOutput.ReadToEnd();
+        string error = proc.StandardError.ReadToEnd();
+
+        proc.WaitForExit();
+
+        if (!string.IsNullOrWhiteSpace(output))
+            Console.WriteLine(output);
+
+        if (!string.IsNullOrWhiteSpace(error))
+            Console.WriteLine("Git Error: " + error);
     }
-    catch (Exception ex)
+
+    // =========================
+    // rebase判定
+    // =========================
+    static bool IsRebaseInProgress()
     {
-        Log.Error($"致命的エラー: {ex.Message}");
+        var gitDir = ".git";
+
+        return Directory.Exists(Path.Combine(gitDir, "rebase-apply")) ||
+               Directory.Exists(Path.Combine(gitDir, "rebase-merge"));
     }
-
-    Log.Info("CTool batch end");
-});
-
-
-// =========================
-// Git実行
-// =========================
-void RunGit(string args)
-{
-    Log.Info($"[git {args}]");
-
-    var psi = new ProcessStartInfo
-    {
-        FileName = "git",
-        Arguments = args,
-        RedirectStandardOutput = true,
-        RedirectStandardError = true,
-        UseShellExecute = false,
-        CreateNoWindow = true,
-        StandardOutputEncoding = Encoding.GetEncoding("shift_jis"),
-        StandardErrorEncoding = Encoding.GetEncoding("shift_jis")
-    };
-
-    using var proc = Process.Start(psi);
-
-    string output = proc.StandardOutput.ReadToEnd();
-    string error = proc.StandardError.ReadToEnd();
-
-    proc.WaitForExit();
-
-    if (!string.IsNullOrWhiteSpace(output))
-        Console.WriteLine(output);
-
-    if (!string.IsNullOrWhiteSpace(error))
-        Console.WriteLine("Git Error: " + error);
-}
-
-
-// =========================
-// rebase判定
-// =========================
-bool IsRebaseInProgress()
-{
-    var gitDir = ".git";
-
-    return Directory.Exists(Path.Combine(gitDir, "rebase-apply")) ||
-           Directory.Exists(Path.Combine(gitDir, "rebase-merge"));
 }
