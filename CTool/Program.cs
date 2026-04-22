@@ -69,13 +69,25 @@ AppRunner.Run(() =>
 
             Log.Info($"JSON出力: {events.Count}件");
 
-            // ---------- Git処理 ----------
-            RunGit("pull --rebase");
-            RunGit("add .");
-            RunGit("commit -m \"update\"");
-            RunGit("push");
+            // ---------- Git処理（安定版） ----------
+            RunGit("pull");   // ★ rebase禁止
 
-            Log.Info("Git push 完了");
+            RunGit("add .");
+
+            // ★ 変更あるときだけcommit
+            var status = RunGitWithResult("status --porcelain");
+
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                RunGit("commit -m \"update\"");
+                RunGit("push");
+
+                Log.Info("Git push 完了");
+            }
+            else
+            {
+                Log.Info("変更なし（commitスキップ）");
+            }
         }
         else
         {
@@ -92,20 +104,17 @@ AppRunner.Run(() =>
 
 
 // =========================
-// Git実行ヘルパー
+// Git実行
 // =========================
 void RunGit(string args)
 {
-    // ★ リポジトリルート（GitMemo）
-    var repoRoot = Path.GetFullPath(
-        Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..")
-    );
+    var repoRoot = GetRepoRoot();
 
     var psi = new ProcessStartInfo
     {
         FileName = "git",
         Arguments = args,
-        WorkingDirectory = repoRoot,   // ★これが最重要
+        WorkingDirectory = repoRoot,
         RedirectStandardOutput = true,
         RedirectStandardError = true,
         UseShellExecute = false,
@@ -126,4 +135,42 @@ void RunGit(string args)
 
     if (!string.IsNullOrWhiteSpace(error))
         Console.WriteLine("Git Error: " + error);
+}
+
+
+// =========================
+// Git結果取得
+// =========================
+string RunGitWithResult(string args)
+{
+    var repoRoot = GetRepoRoot();
+
+    var psi = new ProcessStartInfo
+    {
+        FileName = "git",
+        Arguments = args,
+        WorkingDirectory = repoRoot,
+        RedirectStandardOutput = true,
+        UseShellExecute = false,
+        CreateNoWindow = true
+    };
+
+    using var proc = Process.Start(psi);
+
+    string output = proc.StandardOutput.ReadToEnd();
+
+    proc.WaitForExit();
+
+    return output;
+}
+
+
+// =========================
+// リポジトリルート取得
+// =========================
+string GetRepoRoot()
+{
+    return Path.GetFullPath(
+        Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..")
+    );
 }
